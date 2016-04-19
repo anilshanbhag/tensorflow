@@ -43,3 +43,9 @@ filegroup(
     ),
     visibility = ["//tensorflow:__subpackages__"],
 )
+
+tf_custom_op_library(
+    name = "nvl_op.so",
+    srcs = ["nvl.cc"],
+)
+
