@@ -26,6 +26,9 @@ limitations under the License.
 #include "tensorflow/core/platform/types.h"
 #include "tensorflow/core/public/session_options.h"
 
+#include <iostream>
+#include <sys/time.h>
+
 namespace tensorflow {
 
 ThreadPoolDevice::ThreadPoolDevice(const SessionOptions& options,
@@ -40,6 +43,9 @@ ThreadPoolDevice::ThreadPoolDevice(const SessionOptions& options,
 ThreadPoolDevice::~ThreadPoolDevice() {}
 
 void ThreadPoolDevice::Compute(OpKernel* op_kernel, OpKernelContext* context) {
+  struct timeval  tv1, tv2;
+  gettimeofday(&tv1, NULL);
+
   if (port::Tracing::IsActive()) {
     // TODO(pbar) We really need a useful identifier of the graph node.
     const uint64 id = Hash64(op_kernel->name());
@@ -49,6 +55,11 @@ void ThreadPoolDevice::Compute(OpKernel* op_kernel, OpKernelContext* context) {
   } else {
     op_kernel->Compute(context);
   }
+
+  gettimeofday(&tv2, NULL);
+  double time_taken = (double) (tv2.tv_usec - tv1.tv_usec)  +
+                (double) (tv2.tv_sec - tv1.tv_sec) * 1000000;
+  std::cout<<op_kernel->name()<<" "<<time_taken<<std::endl;
 }
 
 Allocator* ThreadPoolDevice::GetAllocator(AllocatorAttributes attr) {

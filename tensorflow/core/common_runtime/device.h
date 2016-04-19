@@ -31,6 +31,7 @@ limitations under the License.
 
 #include <memory>
 #include <string>
+#include <iostream>
 
 #include "tensorflow/core/framework/allocator.h"
 #include "tensorflow/core/framework/control_flow.h"
@@ -78,6 +79,7 @@ class Device : public DeviceBase {
   // Subclasses may override this function if they wish to perform
   // some initialization before each compute.
   virtual void Compute(OpKernel* op_kernel, OpKernelContext* context) {
+    std::cout<<"IN HERE 1"<<std::endl;
     op_kernel->Compute(context);
   }
 

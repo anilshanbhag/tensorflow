@@ -57,6 +57,9 @@ limitations under the License.
 #include "tensorflow/core/platform/types.h"
 #include "tensorflow/core/util/device_name_utils.h"
 
+#include <iostream>
+#include <sys/time.h>
+
 namespace tensorflow {
 
 namespace {
@@ -269,6 +272,11 @@ Status DirectSession::Run(const RunOptions& run_options,
                           const std::vector<string>& target_nodes,
                           std::vector<Tensor>* outputs,
                           RunMetadata* run_metadata) {
+  std::cout<<"Direct Session Start"<<std::endl;
+  struct timeval  tv1, tv2;
+  gettimeofday(&tv1, NULL);
+
+
   {
     mutex_lock l(graph_def_lock_);
     if (!graph_created_) {
@@ -356,6 +364,11 @@ Status DirectSession::Run(const RunOptions& run_options,
   // Save the output tensors of this run we choose to keep.
   TF_RETURN_IF_ERROR(
       run_state.tensor_store.SaveTensors(output_names, &session_state_));
+
+  gettimeofday(&tv2, NULL);
+  double time_taken = (double) (tv2.tv_usec - tv1.tv_usec)  +
+                (double) (tv2.tv_sec - tv1.tv_sec) * 1000000;
+  std::cout<<"Direct Session End "<<" "<<time_taken<<std::endl;
 
   return Status::OK();
 }
