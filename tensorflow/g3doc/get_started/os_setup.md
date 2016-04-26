@@ -7,8 +7,10 @@ github source.
 
 The TensorFlow Python API supports Python 2.7 and Python 3.3+.
 
-The GPU version (Linux only) requires the Cuda Toolkit >= 7.0 and cuDNN >=
-v2.  Please see [Cuda installation](#optional-install-cuda-gpus-on-linux)
+The GPU version (Linux only) works best with Cuda Toolkit 7.5 and
+cuDNN v4.  other versions are supported (Cuda toolkit >= 7.0 and
+cuDNN 6.5(v2), 7.0(v3), v5) only when installing from sources.
+Please see [Cuda installation](#optional-install-cuda-gpus-on-linux)
 for details.
 
 ## Overview
@@ -182,7 +184,7 @@ $ source ~/tensorflow/bin/activate.csh  # If using csh.
 (tensorflow)$ deactivate
 ```
 
-## Anaconda environment installation
+## Anaconda installation
 
 [Anaconda](https://www.continuum.io/why-anaconda) is a Python distribution that
 includes a large number of standard numeric and scientific computing packages.
@@ -210,8 +212,8 @@ Create a conda environment called `tensorflow`:
 # Python 2.7
 $ conda create -n tensorflow python=2.7
 
-# Python 3.5
-$ conda create -n tensorflow python=3.5
+# Python 3.4
+$ conda create -n tensorflow python=3.4
 ```
 
 Activate the environment and use pip to install TensorFlow inside it.
@@ -325,7 +327,7 @@ You can now [test your installation](#test-the-tensorflow-installation) within t
 ### (Optional, Linux) Enable GPU Support
 
 If you installed the GPU version of TensorFlow, you must also install the Cuda
-Toolkit 7.0 and cuDNN v2.  Please see [Cuda installation](#optional-install-cuda-gpus-on-linux).
+Toolkit 7.5 and cuDNN v4.  Please see [Cuda installation](#optional-install-cuda-gpus-on-linux).
 
 You also need to set the `LD_LIBRARY_PATH` and `CUDA_HOME` environment
 variables.  Consider adding the commands below to your `~/.bash_profile`.  These
@@ -466,20 +468,25 @@ Supported cards include but are not limited to:
 
 https://developer.nvidia.com/cuda-downloads
 
+Install version 7.5 if using our binary releases.
+
 Install the toolkit into e.g. `/usr/local/cuda`
 
 ##### Download and install cuDNN
 
 https://developer.nvidia.com/cudnn
 
+Download cuDNN v4 (v5 is currently a release candidate and is only supported when
+installing TensorFlow from sources).
+
 Uncompress and copy the cuDNN files into the toolkit directory.  Assuming the
 toolkit is installed in `/usr/local/cuda`, run the following commands (edited
 to reflect the cuDNN version you downloaded):
 
 ``` bash
-tar xvzf cudnn-6.5-linux-x64-v2.tgz
-sudo cp cudnn-6.5-linux-x64-v2/cudnn.h /usr/local/cuda/include
-sudo cp cudnn-6.5-linux-x64-v2/libcudnn* /usr/local/cuda/lib64
+tar xvzf cudnn-7.5-linux-x64-v4.tgz
+sudo cp cudnn-7.5-linux-x64-v4/cudnn.h /usr/local/cuda/include
+sudo cp cudnn-7.5-linux-x64-v4/libcudnn* /usr/local/cuda/lib64
 sudo chmod a+r /usr/local/cuda/lib64/libcudnn*
 ```
 
