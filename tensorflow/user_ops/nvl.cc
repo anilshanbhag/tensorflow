@@ -48,6 +48,8 @@ class NvlOp : public OpKernel {
       OP_REQUIRES(context_, dtype == DT_INT32 || dtype == DT_FLOAT ||
           dtype == DT_DOUBLE || dtype == DT_INT64,
           errors::InvalidArgument("Unsupported dtype"));
+      OP_REQUIRES(context_, tensor.shape().dims() <= 2,
+          errors::InvalidArgument("Tensors.dim > 2"));
     }
 
     // Execute NVL code
@@ -120,12 +122,13 @@ class NvlOp : public OpKernel {
     // For rest, copy as vector struct
     // [data_pointer:long, size: long, region:long=0].
     int bufferSize = CalculateBufferSize(inputs);
+    std::vector<char*> allocatedBuffers;
     char* buffer = new char[bufferSize];
     int curPointer = 0;
     for (int i=0; i<inputs.size(); i++) {
       const Tensor& tensor = inputs[i];
       int dtypeSize = GetDTypeSize(tensor.dtype());
-      if (tensor.shape().dims() > 0) {
+      if (tensor.shape().dims() == 1) {
         // Get data. Return is a StringPiece.
         auto data = tensor.tensor_data();
         long region = 0;
@@ -133,6 +136,28 @@ class NvlOp : public OpKernel {
         char* data_ptr = (char*)data.data();
         memcpy(buffer + curPointer, &data_ptr, 8); curPointer += 8;
         memcpy(buffer + curPointer, &size, 8); curPointer += 8;
+        memcpy(buffer + curPointer, &region, 8); curPointer += 8;
+      } else if (tensor.shape().dims() == 2) {
+        // Get data. Return is a StringPiece.
+        auto data = tensor.tensor_data();
+        long region = 0;
+        char* data_ptr = (char*)data.data();
+        int num_x = tensor.shape().dim_size(0);
+        int num_y = tensor.shape().dim_size(1);
+        long innerVecSize = num_y;
+        long outerVecSize = num_x;
+        char* innerVecBuffer = new char[num_x * 24];
+        allocatedBuffers.push_back(innerVecBuffer);
+        int innerPointer = 0;
+        for (int j=0; j<num_x; j++) {
+          char* vec_data = (char*)(data_ptr) + j*dtypeSize*num_y;
+          memcpy(innerVecBuffer + innerPointer, &vec_data, 8); innerPointer += 8;
+          memcpy(innerVecBuffer + innerPointer, &innerVecSize, 8); innerPointer += 8;
+          memcpy(innerVecBuffer + innerPointer, &region, 8); innerPointer += 8;
+        }
+
+        memcpy(buffer + curPointer, &innerVecBuffer, 8); curPointer += 8;
+        memcpy(buffer + curPointer, &outerVecSize, 8); curPointer += 8;
         memcpy(buffer + curPointer, &region, 8); curPointer += 8;
       } else {
         auto data = tensor.tensor_data();
@@ -144,6 +169,10 @@ class NvlOp : public OpKernel {
     // Invoke NVL program
     char* nvl_result = nvl_main_(buffer);
     CHECK_NOTNULL(nvl_result);
+    delete[] buffer;
+    for (int i=0; i<allocatedBuffers.size(); i++) {
+      delete[] allocatedBuffers[i];
+    }
     return nvl_result;
   }
 
