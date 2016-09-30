@@ -9,7 +9,7 @@ Note: Functions taking `Tensor` arguments can also take anything accepted by
 
 ## Sparse Tensor Representation
 
-Tensorflow supports a `SparseTensor` representation for data that is sparse
+TensorFlow supports a `SparseTensor` representation for data that is sparse
 in multiple dimensions. Contrast this representation with `IndexedSlices`,
 which is efficient for representing tensors that are sparse in their first
 dimension, and dense along all other dimensions.
@@ -20,22 +20,35 @@ dimension, and dense along all other dimensions.
 
 Represents a sparse tensor.
 
-Tensorflow represents a sparse tensor as three separate dense tensors:
+TensorFlow represents a sparse tensor as three separate dense tensors:
 `indices`, `values`, and `shape`.  In Python, the three tensors are
 collected into a `SparseTensor` class for ease of use.  If you have separate
 `indices`, `values`, and `shape` tensors, wrap them in a `SparseTensor`
 object before passing to the ops below.
 
-Concretely, the sparse tensor `SparseTensor(indices, values, shape)` is
+Concretely, the sparse tensor `SparseTensor(indices, values, shape)`
+comprises the following components, where `N` and `ndims` are the number
+of values and number of dimensions in the `SparseTensor`, respectively:
 
-* `indices`: A 2-D int64 tensor of shape `[N, ndims]`.
-* `values`: A 1-D tensor of any type and shape `[N]`.
-* `shape`: A 1-D int64 tensor of shape `[ndims]`.
+* `indices`: A 2-D int64 tensor of shape `[N, ndims]`, which specifies
+  the indices of the elements in the sparse tensor that contain nonzero
+  values (elements are zero-indexed). For example, `indices=[[1,3], [2,4]]`
+  specifies that the elements with indexes of [1,3] and [2,4] have
+  nonzero values.
 
-where `N` and `ndims` are the number of values, and number of dimensions in
-the `SparseTensor` respectively.
+* `values`: A 1-D tensor of any type and shape `[N]`, which supplies the
+  values for each element in `indices`. For example, given
+  `indices=[[1,3], [2,4]]`, the parameter `values=[18, 3.6]` specifies
+  that element [1,3] of the sparse tensor has a value of 18, and element
+  [2,4] of the tensor has a value of 3.6.
 
-The corresponding dense tensor satisfies
+* `shape`: A 1-D int64 tensor of shape `[ndims]`, which specifies the shape
+  of the sparse tensor. Takes a list indicating the number of elements in
+  each dimension. For example, `shape=[3,6]` specifies a two-dimensional 3x6
+  tensor, `shape=[2,3,4]` specifies a three-dimensional 2x3x4 tensor, and
+  `shape=[9]` specifies a one-dimensional tensor with 9 elements.
+
+The corresponding dense tensor satisfies:
 
 ```python
 dense.shape = shape
@@ -43,7 +56,7 @@ dense[tuple(indices[i])] = values[i]
 ```
 
 By convention, `indices` should be sorted in row-major order (or equivalently
-lexicographic order on the tuples `indices[i]`).  This is not enforced when
+lexicographic order on the tuples `indices[i]`). This is not enforced when
 `SparseTensor` objects are constructed, but most ops assume correct ordering.
 If the ordering of sparse tensor `st` is wrong, a fixed version can be
 obtained by calling `tf.sparse_reorder(st)`.
@@ -105,6 +118,13 @@ The non-zero values in the represented dense tensor.
 
 - - -
 
+#### `tf.SparseTensor.shape` {#SparseTensor.shape}
+
+A 1-D Tensor of int64 representing the shape of the dense tensor.
+
+
+- - -
+
 #### `tf.SparseTensor.dtype` {#SparseTensor.dtype}
 
 The `DType` of elements in this tensor.
@@ -112,9 +132,9 @@ The `DType` of elements in this tensor.
 
 - - -
 
-#### `tf.SparseTensor.shape` {#SparseTensor.shape}
+#### `tf.SparseTensor.op` {#SparseTensor.op}
 
-A 1-D Tensor of int64 representing the shape of the dense tensor.
+The `Operation` that produces `values` as an output.
 
 
 - - -
@@ -126,6 +146,82 @@ The `Graph` that contains the index, value, and shape tensors.
 
 
 #### Other Methods
+- - -
+
+#### `tf.SparseTensor.__div__(sp_x, y)` {#SparseTensor.__div__}
+
+Component-wise divides a SparseTensor by a dense Tensor.
+
+*Limitation*: this Op only broadcasts the dense side to the sparse side, but not
+the other direction.
+
+##### Args:
+
+
+*  <b>`sp_indices`</b>: A `Tensor` of type `int64`.
+    2-D.  `N x R` matrix with the indices of non-empty values in a
+    SparseTensor, possibly not in canonical ordering.
+*  <b>`sp_values`</b>: A `Tensor`. Must be one of the following types: `float32`, `float64`, `int64`, `int32`, `uint8`, `uint16`, `int16`, `int8`, `complex64`, `complex128`, `qint8`, `quint8`, `qint32`, `half`.
+    1-D.  `N` non-empty values corresponding to `sp_indices`.
+*  <b>`sp_shape`</b>: A `Tensor` of type `int64`.
+    1-D.  Shape of the input SparseTensor.
+*  <b>`dense`</b>: A `Tensor`. Must have the same type as `sp_values`.
+    `R`-D.  The dense Tensor operand.
+*  <b>`name`</b>: A name for the operation (optional).
+
+##### Returns:
+
+  A `Tensor`. Has the same type as `sp_values`.
+  1-D.  The `N` values that are operated on.
+
+
+- - -
+
+#### `tf.SparseTensor.__mul__(sp_x, y)` {#SparseTensor.__mul__}
+
+Component-wise multiplies a SparseTensor by a dense Tensor.
+
+The output locations corresponding to the implicitly zero elements in the sparse
+tensor will be zero (i.e., will not take up storage space), regardless of the
+contents of the dense tensor (even if it's +/-INF and that INF*0 == NaN).
+
+*Limitation*: this Op only broadcasts the dense side to the sparse side, but not
+the other direction.
+
+##### Args:
+
+
+*  <b>`sp_indices`</b>: A `Tensor` of type `int64`.
+    2-D.  `N x R` matrix with the indices of non-empty values in a
+    SparseTensor, possibly not in canonical ordering.
+*  <b>`sp_values`</b>: A `Tensor`. Must be one of the following types: `float32`, `float64`, `int64`, `int32`, `uint8`, `uint16`, `int16`, `int8`, `complex64`, `complex128`, `qint8`, `quint8`, `qint32`, `half`.
+    1-D.  `N` non-empty values corresponding to `sp_indices`.
+*  <b>`sp_shape`</b>: A `Tensor` of type `int64`.
+    1-D.  Shape of the input SparseTensor.
+*  <b>`dense`</b>: A `Tensor`. Must have the same type as `sp_values`.
+    `R`-D.  The dense Tensor operand.
+*  <b>`name`</b>: A name for the operation (optional).
+
+##### Returns:
+
+  A `Tensor`. Has the same type as `sp_values`.
+  1-D.  The `N` values that are operated on.
+
+
+- - -
+
+#### `tf.SparseTensor.__str__()` {#SparseTensor.__str__}
+
+
+
+
+- - -
+
+#### `tf.SparseTensor.__truediv__(sp_x, y)` {#SparseTensor.__truediv__}
+
+Internal helper function for 'sp_t / dense_t'.
+
+
 - - -
 
 #### `tf.SparseTensor.eval(feed_dict=None, session=None)` {#SparseTensor.eval}
@@ -154,12 +250,47 @@ available, or `session` must be specified explicitly.
   A `SparseTensorValue` object.
 
 
+- - -
+
+#### `tf.SparseTensor.from_value(cls, sparse_tensor_value)` {#SparseTensor.from_value}
+
+
+
+
 
 - - -
 
 ### `class tf.SparseTensorValue` {#SparseTensorValue}
 
 SparseTensorValue(indices, values, shape)
+- - -
+
+#### `tf.SparseTensorValue.__getnewargs__()` {#SparseTensorValue.__getnewargs__}
+
+Return self as a plain tuple.  Used by copy and pickle.
+
+
+- - -
+
+#### `tf.SparseTensorValue.__getstate__()` {#SparseTensorValue.__getstate__}
+
+Exclude the OrderedDict from pickling
+
+
+- - -
+
+#### `tf.SparseTensorValue.__new__(_cls, indices, values, shape)` {#SparseTensorValue.__new__}
+
+Create new instance of SparseTensorValue(indices, values, shape)
+
+
+- - -
+
+#### `tf.SparseTensorValue.__repr__()` {#SparseTensorValue.__repr__}
+
+Return a nicely formatted representation string
+
+
 - - -
 
 #### `tf.SparseTensorValue.indices` {#SparseTensorValue.indices}
@@ -336,7 +467,7 @@ The input `SparseTensor` must be in row-major order.
 
 - - -
 
-### `tf.sparse_merge(sp_ids, sp_values, vocab_size, name=None)` {#sparse_merge}
+### `tf.sparse_merge(sp_ids, sp_values, vocab_size, name=None, already_sorted=False)` {#sparse_merge}
 
 Combines a batch of feature ids and values into a single `SparseTensor`.
 
@@ -356,14 +487,17 @@ The `SparseTensor` returned by this function has the following properties:
 
 For example, consider the following feature vectors:
 
+```python
   vector1 = [-3, 0, 0, 0, 0, 0]
   vector2 = [ 0, 1, 0, 4, 1, 0]
   vector3 = [ 5, 0, 0, 9, 0, 0]
+```
 
 These might be stored sparsely in the following Example protos by storing
 only the feature ids (column number if the vectors are treated as a matrix)
 of the non-zero elements and the corresponding values:
 
+```python
   examples = [Example(features={
                   "ids": Feature(int64_list=Int64List(value=[0])),
                   "values": Feature(float_list=FloatList(value=[-3]))}),
@@ -373,21 +507,24 @@ of the non-zero elements and the corresponding values:
               Example(features={
                   "ids": Feature(int64_list=Int64List(value=[0, 3])),
                   "values": Feature(float_list=FloatList(value=[5, 9]))})]
+```
 
 The result of calling parse_example on these examples will produce a
 dictionary with entries for "ids" and "values". Passing those two objects
-to this function will produce a `SparseTensor` that sparsely represents
-all three instances. Namely, the `indices` property will contain
-the coordinates of the non-zero entries in the feature matrix (the first
-dimension is the row number in the matrix, i.e., the index within the batch,
-and the second dimension is the column number, i.e., the feature id);
+to this function along with vocab_size=6, will produce a `SparseTensor` that
+sparsely represents all three instances. Namely, the `indices` property will
+contain the coordinates of the non-zero entries in the feature matrix (the
+first dimension is the row number in the matrix, i.e., the index within the
+batch, and the second dimension is the column number, i.e., the feature id);
 `values` will contain the actual values. `shape` will be the shape of the
-original matrix, i.e., (3, 7). For our example above, the output will be
+original matrix, i.e., (3, 6). For our example above, the output will be
 equal to:
 
+```python
   SparseTensor(indices=[[0, 0], [1, 1], [1, 3], [1, 4], [2, 0], [2, 3]],
                values=[-3, 1, 4, 1, 5, 9],
-               shape=[3, 7])
+               shape=[3, 6])
+```
 
 ##### Args:
 
@@ -398,6 +535,9 @@ equal to:
 *  <b>`vocab_size`</b>: A scalar `int64` Tensor (or Python int) containing the new size
     of the last dimension, `all(0 <= sp_ids.values < vocab_size)`.
 *  <b>`name`</b>: A name prefix for the returned tensors (optional)
+*  <b>`already_sorted`</b>: A boolean to specify whether the per-batch values in
+   `sp_values` are already sorted. If so skip sorting, False by default
+   (optional).
 
 ##### Returns:
 
@@ -415,7 +555,7 @@ equal to:
 
 - - -
 
-### `tf.sparse_concat(concat_dim, sp_inputs, name=None)` {#sparse_concat}
+### `tf.sparse_concat(concat_dim, sp_inputs, name=None, expand_nonconcat_dim=False)` {#sparse_concat}
 
 Concatenates a list of `SparseTensor` along the specified dimension.
 
@@ -423,11 +563,19 @@ Concatenation is with respect to the dense versions of each sparse input.
 It is assumed that each inputs is a `SparseTensor` whose elements are ordered
 along increasing dimension number.
 
-All inputs' shapes must match, except for the concat dimension.  The
-`indices`, `values`, and `shapes` lists must have the same length.
+If expand_nonconcat_dim is False, all inputs' shapes must match, except for
+the concat dimension. If expand_nonconcat_dim is True, then inputs' shapes are
+allowd to vary among all inputs.
 
-The output shape is identical to the inputs', except along the concat
-dimension, where it is the sum of the inputs' sizes along that dimension.
+The `indices`, `values`, and `shapes` lists must have the same length.
+
+If expand_nonconcat_dim is False, then the output shape is identical to the
+inputs', except along the concat dimension, where it is the sum of the inputs'
+sizes along that dimension.
+
+If expand_nonconcat_dim is True, then the output shape along the non-concat
+dimensions will be expand to be the largest among all inputs, and it is the
+sum of the inputs sizes along the concat dimension.
 
 The output elements will be resorted to preserve the sort order along
 increasing dimension number.
@@ -461,12 +609,43 @@ Graphically this is equivalent to doing
     [    a] concat [  d e  ] = [    a   d e  ]
     [b c  ]        [       ]   [b c          ]
 
+Another example, if 'concat_dim = 1' and the inputs are
+
+    sp_inputs[0]: shape = [3, 3]
+    [0, 2]: "a"
+    [1, 0]: "b"
+    [2, 1]: "c"
+
+    sp_inputs[1]: shape = [2, 4]
+    [0, 1]: "d"
+    [0, 2]: "e"
+
+if expand_nonconcat_dim = False, this will result in an error. But if
+expand_nonconcat_dim = True, this will result in:
+
+    shape = [3, 7]
+    [0, 2]: "a"
+    [0, 4]: "d"
+    [0, 5]: "e"
+    [1, 0]: "b"
+    [2, 1]: "c"
+
+Graphically this is equivalent to doing
+
+    [    a] concat [  d e  ] = [    a   d e  ]
+    [b    ]        [       ]   [b            ]
+    [  c  ]                    [  c          ]
+
+
 ##### Args:
 
 
-*  <b>`concat_dim`</b>: Dimension to concatenate along.
+*  <b>`concat_dim`</b>: Dimension to concatenate along. Must be in range [-rank, rank),
+    where rank is the number of dimensions in each input `SparseTensor`.
 *  <b>`sp_inputs`</b>: List of `SparseTensor` to concatenate.
 *  <b>`name`</b>: A name prefix for the returned tensors (optional).
+*  <b>`expand_nonconcat_dim`</b>: Whether to allow the expansion in the non-concat
+    dimensions. Defaulted to False.
 
 ##### Returns:
 
@@ -515,6 +694,60 @@ then the output will be a `SparseTensor` of shape `[4, 5]` and
 
   A `SparseTensor` with the same shape and non-empty values, but in
   canonical ordering.
+
+##### Raises:
+
+
+*  <b>`TypeError`</b>: If `sp_input` is not a `SparseTensor`.
+
+
+- - -
+
+### `tf.sparse_reshape(sp_input, shape, name=None)` {#sparse_reshape}
+
+Reshapes a `SparseTensor` to represent values in a new dense shape.
+
+This operation has the same semantics as `reshape` on the represented dense
+tensor.  The indices of non-empty values in `sp_input` are recomputed based
+on the new dense shape, and a new `SparseTensor` is returned containing the
+new indices and new shape.  The order of non-empty values in `sp_input` is
+unchanged.
+
+If one component of `shape` is the special value -1, the size of that
+dimension is computed so that the total dense size remains constant.  At
+most one component of `shape` can be -1.  The number of dense elements
+implied by `shape` must be the same as the number of dense elements
+originally represented by `sp_input`.
+
+For example, if `sp_input` has shape `[2, 3, 6]` and `indices` / `values`:
+
+    [0, 0, 0]: a
+    [0, 0, 1]: b
+    [0, 1, 0]: c
+    [1, 0, 0]: d
+    [1, 2, 3]: e
+
+and `shape` is `[9, -1]`, then the output will be a `SparseTensor` of
+shape `[9, 4]` and `indices` / `values`:
+
+    [0, 0]: a
+    [0, 1]: b
+    [1, 2]: c
+    [4, 2]: d
+    [8, 1]: e
+
+##### Args:
+
+
+*  <b>`sp_input`</b>: The input `SparseTensor`.
+*  <b>`shape`</b>: A 1-D (vector) int64 `Tensor` specifying the new dense shape of the
+    represented `SparseTensor`.
+*  <b>`name`</b>: A name prefix for the returned tensors (optional)
+
+##### Returns:
+
+  A `SparseTensor` with the same non-empty values but with indices calculated
+  by the new dense shape.
 
 ##### Raises:
 
@@ -603,6 +836,69 @@ be a `SparseTensor` of shape `[4, 5]` with 2 non-empty values:
 
 - - -
 
+### `tf.sparse_reset_shape(sp_input, new_shape=None)` {#sparse_reset_shape}
+
+Resets the shape of a `SparseTensor` with indices and values unchanged.
+
+If `new_shape` is None, returns a copy of `sp_input` with its shape reset
+to the tight bounding box of `sp_input`.
+
+If `new_shape` is provided, then it must be larger or equal in all dimensions
+compared to the shape of `sp_input`. When this condition is met, the returned
+SparseTensor will have its shape reset to `new_shape` and its indices and
+values unchanged from that of `sp_input.`
+
+For example:
+
+  Consider a `sp_input` with shape [2, 3, 5]:
+
+    [0, 0, 1]: a
+    [0, 1, 0]: b
+    [0, 2, 2]: c
+    [1, 0, 3]: d
+
+  - It is an error to set `new_shape` as [3, 7] since this represents a
+    rank-2 tensor while `sp_input` is rank-3. This is either a ValueError
+    during graph construction (if both shapes are known) or an OpError during
+    run time.
+
+  - Setting `new_shape` as [2, 3, 6] will be fine as this shape is larger or
+    equal in every dimension compared to the original shape [2, 3, 5].
+
+  - On the other hand, setting new_shape as [2, 3, 4] is also an error: The
+    third dimension is smaller than the original shape [2, 3, 5] (and an
+    `InvalidArgumentError` will be raised).
+
+  - If `new_shape` is None, the returned SparseTensor will have a shape
+    [2, 3, 4], which is the tight bounding box of `sp_input`.
+
+##### Args:
+
+
+*  <b>`sp_input`</b>: The input `SparseTensor`.
+*  <b>`new_shape`</b>: None or a vector representing the new shape for the returned
+    `SparseTensor`.
+
+##### Returns:
+
+  A `SparseTensor` indices and values unchanged from `input_sp`. Its shape is
+    `new_shape` if that is set. Otherwise it is  the tight bounding box of
+     `input_sp`
+
+##### Raises:
+
+
+*  <b>`TypeError`</b>: If `sp_input` is not a `SparseTensor`.
+*  <b>`ValueError`</b>: If `new_shape` represents a tensor with a different rank from
+    that of `sp_input` (if shapes are known when graph is constructed).
+*  <b>`OpError`</b>: 
+    - If `new_shape` has dimension sizes that are too small.
+    - If shapes are not known during graph construction time, and during run
+      time it is found out that the ranks do not match.
+
+
+- - -
+
 ### `tf.sparse_fill_empty_rows(sp_input, default_value, name=None)` {#sparse_fill_empty_rows}
 
 Fills empty rows in the input 2-D `SparseTensor` with a default value.
@@ -656,6 +952,128 @@ This op also returns an indicator vector such that
 
 
 *  <b>`TypeError`</b>: If `sp_input` is not a `SparseTensor`.
+
+
+- - -
+
+### `tf.sparse_transpose(sp_input, perm=None, name=None)` {#sparse_transpose}
+
+Transposes a `SparseTensor`
+
+The returned tensor's dimension i will correspond to the input dimension
+`perm[i]`. If `perm` is not given, it is set to (n-1...0), where n is
+the rank of the input tensor. Hence by default, this operation performs a
+regular matrix transpose on 2-D input Tensors.
+
+For example, if `sp_input` has shape `[4, 5]` and `indices` / `values`:
+
+    [0, 3]: b
+    [0, 1]: a
+    [3, 1]: d
+    [2, 0]: c
+
+then the output will be a `SparseTensor` of shape `[5, 4]` and
+`indices` / `values`:
+
+    [0, 2]: c
+    [1, 0]: a
+    [1, 3]: d
+    [3, 0]: b
+
+##### Args:
+
+
+*  <b>`sp_input`</b>: The input `SparseTensor`.
+*  <b>`perm`</b>: A permutation of the dimensions of `sp_input`.
+*  <b>`name`</b>: A name prefix for the returned tensors (optional)
+
+##### Returns:
+
+  A transposed `SparseTensor`.
+
+##### Raises:
+
+
+*  <b>`TypeError`</b>: If `sp_input` is not a `SparseTensor`.
+
+
+
+## Reduction
+- - -
+
+### `tf.sparse_reduce_sum(sp_input, reduction_axes=None, keep_dims=False)` {#sparse_reduce_sum}
+
+Computes the sum of elements across dimensions of a SparseTensor.
+
+This Op takes a SparseTensor and is the sparse counterpart to
+`tf.reduce_sum()`.  In particular, this Op also returns a dense `Tensor`
+instead of a sparse one.
+
+Reduces `sp_input` along the dimensions given in `reduction_axes`.  Unless
+`keep_dims` is true, the rank of the tensor is reduced by 1 for each entry in
+`reduction_axes`. If `keep_dims` is true, the reduced dimensions are retained
+with length 1.
+
+If `reduction_axes` has no entries, all dimensions are reduced, and a tensor
+with a single element is returned.  Additionally, the axes can be negative,
+similar to the indexing rules in Python.
+
+For example:
+
+```python
+# 'x' represents [[1, ?, 1]
+#                 [?, 1, ?]]
+# where ? is implicitly-zero.
+tf.sparse_reduce_sum(x) ==> 3
+tf.sparse_reduce_sum(x, 0) ==> [1, 1, 1]
+tf.sparse_reduce_sum(x, 1) ==> [2, 1]  # Can also use -1 as the axis.
+tf.sparse_reduce_sum(x, 1, keep_dims=True) ==> [[2], [1]]
+tf.sparse_reduce_sum(x, [0, 1]) ==> 3
+```
+
+##### Args:
+
+
+*  <b>`sp_input`</b>: The SparseTensor to reduce. Should have numeric type.
+*  <b>`reduction_axes`</b>: The dimensions to reduce; list or scalar. If `None` (the
+    default), reduces all dimensions.
+*  <b>`keep_dims`</b>: If true, retain reduced dimensions with length 1.
+
+##### Returns:
+
+  The reduced Tensor.
+
+
+- - -
+
+### `tf.sparse_reduce_sum_sparse(sp_input, reduction_axes=None, keep_dims=False)` {#sparse_reduce_sum_sparse}
+
+Computes the sum of elements across dimensions of a SparseTensor.
+
+This Op takes a SparseTensor and is the sparse counterpart to
+`tf.reduce_sum()`.  In contrast to SparseReduceSum, this Op returns a
+SparseTensor.
+
+Reduces `sp_input` along the dimensions given in `reduction_axes`.  Unless
+`keep_dims` is true, the rank of the tensor is reduced by 1 for each entry in
+`reduction_axes`. If `keep_dims` is true, the reduced dimensions are retained
+with length 1.
+
+If `reduction_axes` has no entries, all dimensions are reduced, and a tensor
+with a single element is returned.  Additionally, the axes can be negative,
+which are interpreted according to the indexing rules in Python.
+
+##### Args:
+
+
+*  <b>`sp_input`</b>: The SparseTensor to reduce. Should have numeric type.
+*  <b>`reduction_axes`</b>: The dimensions to reduce; list or scalar. If `None` (the
+    default), reduces all dimensions.
+*  <b>`keep_dims`</b>: If true, retain reduced dimensions with length 1.
+
+##### Returns:
+
+  The reduced SparseTensor.
 
 
 
@@ -716,6 +1134,61 @@ Then,
 
 
 *  <b>`TypeError`</b>: If both `a` and `b` are `Tensor`s.  Use `tf.add()` instead.
+
+
+- - -
+
+### `tf.sparse_softmax(sp_input, name=None)` {#sparse_softmax}
+
+Applies softmax to a batched N-D `SparseTensor`.
+
+The inputs represent an N-D SparseTensor  with logical shape `[..., B, C]`
+(where `N >= 2`), and with indices sorted in the canonical lexicographic
+order.
+
+This op is equivalent to applying the normal `tf.nn.softmax()` to each
+innermost logical submatrix with shape `[B, C]`, but with the catch that *the
+implicitly zero elements do not participate*.  Specifically, the algorithm is
+equivalent to:
+
+  (1) Applies `tf.nn.softmax()` to a densified view of each innermost
+      submatrix with shape `[B, C]`, along the size-C dimension;
+  (2) Masks out the original implicitly-zero locations;
+  (3) Renormalizes the remaining elements.
+
+Hence, the `SparseTensor` result has exactly the same non-zero indices and
+shape.
+
+Example:
+
+```python
+# First batch:
+# [?   e.]
+# [1.  ? ]
+# Second batch:
+# [e   ? ]
+# [e   e ]
+shape = [2, 2, 2]  # 3-D SparseTensor
+values = np.asarray([[[0., np.e], [1., 0.]], [[np.e, 0.], [np.e, np.e]]])
+indices = np.vstack(np.where(values)).astype(np.int64).T
+
+result = tf.sparse_softmax(tf.SparseTensor(indices, values, shape))
+# ...returning a 3-D SparseTensor, equivalent to:
+# [?   1.]     [1    ?]
+# [1.  ? ] and [.5  .5]
+# where ? means implicitly zero.
+```
+
+##### Args:
+
+
+*  <b>`sp_input`</b>: N-D `SparseTensor`, where `N >= 2`.
+*  <b>`name`</b>: optional name of the operation.
+
+##### Returns:
+
+
+*  <b>`output`</b>: N-D `SparseTensor` representing the results.
 
 
 - - -
@@ -882,5 +1355,67 @@ B dense [k, n]
     A = A.H if adjoint_a else A
     B = B.H if adjoint_b else B
     return A*B
+
+
+- - -
+
+### `tf.sparse_maximum(sp_a, sp_b, name=None)` {#sparse_maximum}
+
+Returns the element-wise max of two SparseTensors.
+
+Assumes the two SparseTensors have the same shape, i.e., no broadcasting.
+Example:
+
+```python
+sp_zero = ops.SparseTensor([[0]], [0], [7])
+sp_one = ops.SparseTensor([[1]], [1], [7])
+res = tf.sparse_maximum(sp_zero, sp_one).eval()
+# "res" should be equal to SparseTensor([[0], [1]], [0, 1], [7]).
+```
+
+##### Args:
+
+
+*  <b>`sp_a`</b>: a `SparseTensor` operand whose dtype is real, and indices
+    lexicographically ordered.
+*  <b>`sp_b`</b>: the other `SparseTensor` operand with the same requirements (and the
+    same shape).
+*  <b>`name`</b>: optional name of the operation.
+
+##### Returns:
+
+
+*  <b>`output`</b>: the output SparseTensor.
+
+
+- - -
+
+### `tf.sparse_minimum(sp_a, sp_b, name=None)` {#sparse_minimum}
+
+Returns the element-wise min of two SparseTensors.
+
+Assumes the two SparseTensors have the same shape, i.e., no broadcasting.
+Example:
+
+```python
+sp_zero = ops.SparseTensor([[0]], [0], [7])
+sp_one = ops.SparseTensor([[1]], [1], [7])
+res = tf.sparse_minimum(sp_zero, sp_one).eval()
+# "res" should be equal to SparseTensor([[0], [1]], [0, 0], [7]).
+```
+
+##### Args:
+
+
+*  <b>`sp_a`</b>: a `SparseTensor` operand whose dtype is real, and indices
+    lexicographically ordered.
+*  <b>`sp_b`</b>: the other `SparseTensor` operand with the same requirements (and the
+    same shape).
+*  <b>`name`</b>: optional name of the operation.
+
+##### Returns:
+
+
+*  <b>`output`</b>: the output SparseTensor.
 
 

@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -54,6 +54,14 @@ __global__ void ScatterOpCustomKernel(
         CudaAtomicSub(params + params_i, ldg(updates + updates_i));
         break;
       }
+      case scatter_op::UpdateOp::MUL: {
+        CudaAtomicMul(params + params_i, ldg(updates + updates_i));
+        break;
+      }
+      case scatter_op::UpdateOp::DIV: {
+        CudaAtomicDiv(params + params_i, ldg(updates + updates_i));
+        break;
+      }
     }
   }
 }
@@ -86,10 +94,12 @@ struct ScatterFunctor<GPUDevice, T, Index, op> {
 #define DEFINE_GPU_SPECS_OP(T, Index, op)                               \
   template struct functor::ScatterFunctor<GPUDevice, T, Index, op>;
 
-#define DEFINE_GPU_SPECS_INDEX(T, Index)                        \
-  DEFINE_GPU_SPECS_OP(T, Index, scatter_op::UpdateOp::ASSIGN);  \
-  DEFINE_GPU_SPECS_OP(T, Index, scatter_op::UpdateOp::ADD);     \
-  DEFINE_GPU_SPECS_OP(T, Index, scatter_op::UpdateOp::SUB);
+#define DEFINE_GPU_SPECS_INDEX(T, Index)                       \
+  DEFINE_GPU_SPECS_OP(T, Index, scatter_op::UpdateOp::ASSIGN); \
+  DEFINE_GPU_SPECS_OP(T, Index, scatter_op::UpdateOp::ADD);    \
+  DEFINE_GPU_SPECS_OP(T, Index, scatter_op::UpdateOp::SUB);    \
+  DEFINE_GPU_SPECS_OP(T, Index, scatter_op::UpdateOp::MUL);    \
+  DEFINE_GPU_SPECS_OP(T, Index, scatter_op::UpdateOp::DIV);
 
 #define DEFINE_GPU_SPECS(T)                     \
   DEFINE_GPU_SPECS_INDEX(T, int32);             \

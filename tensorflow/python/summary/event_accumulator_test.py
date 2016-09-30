@@ -1,4 +1,4 @@
-# Copyright 2015 Google Inc. All Rights Reserved.
+# Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -192,7 +192,6 @@ class MockingEventAccumulatorTest(EventAccumulatorTest):
     gen.AddImage('im2')
     gen.AddAudio('snd1')
     gen.AddAudio('snd2')
-    self.assertEqual(acc.Tags(), self.empty)
     acc.Reload()
     self.assertTagsEqual(acc.Tags(), {
         ea.IMAGES: ['im1', 'im2'],
@@ -308,91 +307,38 @@ class MockingEventAccumulatorTest(EventAccumulatorTest):
         compressed_histogram_values=expected_vals2)
     self.assertEqual(acc.CompressedHistograms('hst2'), [expected_cmphst2])
 
-  def testPercentile(self):
-
-    def AssertExpectedForBps(bps, expected):
-      output = acc._Percentile(bps, bucket_limit, cumsum_weights, histo_min,
-                               histo_max, histo_num)
-      self.assertAlmostEqual(expected, output)
-
-    gen = _EventGenerator()
-    acc = ea.EventAccumulator(gen)
-
-    bucket_limit = [1, 2, 3, 4]
-    histo_num = 100
-
-    ## All weights in the first bucket
-    cumsum_weights = [10000, 10000, 10000, 10000]
-    histo_min = -1
-    histo_max = .9
-    AssertExpectedForBps(0, histo_min)
-    AssertExpectedForBps(2500, ea._Remap(2500, 0, 10000, histo_min, histo_max))
-    AssertExpectedForBps(5000, ea._Remap(5000, 0, 10000, histo_min, histo_max))
-    AssertExpectedForBps(7500, ea._Remap(7500, 0, 10000, histo_min, histo_max))
-    AssertExpectedForBps(10000, histo_max)
-
-    ## All weights in second bucket
-    cumsum_weights = [0, 10000, 10000, 10000]
-    histo_min = 1.1
-    histo_max = 1.8
-    AssertExpectedForBps(0, histo_min)
-    AssertExpectedForBps(2500, ea._Remap(2500, 0, 10000, histo_min, histo_max))
-    AssertExpectedForBps(5000, ea._Remap(5000, 0, 10000, histo_min, histo_max))
-    AssertExpectedForBps(7500, ea._Remap(7500, 0, 10000, histo_min, histo_max))
-    AssertExpectedForBps(10000, histo_max)
-
-    ## All weights in the last bucket
-    cumsum_weights = [0, 0, 0, 10000]
-    histo_min = 3.1
-    histo_max = 3.6
-    AssertExpectedForBps(0, histo_min)
-    AssertExpectedForBps(2500, ea._Remap(2500, 0, 10000, histo_min, histo_max))
-    AssertExpectedForBps(5000, ea._Remap(5000, 0, 10000, histo_min, histo_max))
-    AssertExpectedForBps(7500, ea._Remap(7500, 0, 10000, histo_min, histo_max))
-    AssertExpectedForBps(10000, histo_max)
-
-    ## Weights distributed between two buckets
-    cumsum_weights = [0, 4000, 10000, 10000]
-    histo_min = 1.1
-    histo_max = 2.9
-    AssertExpectedForBps(0, histo_min)
-    AssertExpectedForBps(2500, ea._Remap(2500, 0, 4000, histo_min,
-                                         bucket_limit[1]))
-    AssertExpectedForBps(5000, ea._Remap(5000, 4000, 10000, bucket_limit[1],
-                                         histo_max))
-    AssertExpectedForBps(7500, ea._Remap(7500, 4000, 10000, bucket_limit[1],
-                                         histo_max))
-    AssertExpectedForBps(10000, histo_max)
-
-    ## Weights distributed between all buckets
-    cumsum_weights = [1000, 4000, 8000, 10000]
-    histo_min = -1
-    histo_max = 3.9
-    AssertExpectedForBps(0, histo_min)
-    AssertExpectedForBps(2500, ea._Remap(2500, 1000, 4000, bucket_limit[0],
-                                         bucket_limit[1]))
-    AssertExpectedForBps(5000, ea._Remap(5000, 4000, 8000, bucket_limit[1],
-                                         bucket_limit[2]))
-    AssertExpectedForBps(7500, ea._Remap(7500, 4000, 8000, bucket_limit[1],
-                                         bucket_limit[2]))
-    AssertExpectedForBps(9000, ea._Remap(9000, 8000, 10000, bucket_limit[2],
-                                         histo_max))
-    AssertExpectedForBps(10000, histo_max)
-
-    ## Most weight in first bucket
-    cumsum_weights = [9000, 10000, 10000, 10000]
-    histo_min = -1
-    histo_max = 1.1
-    AssertExpectedForBps(0, histo_min)
-    AssertExpectedForBps(2500, ea._Remap(2500, 0, 9000, histo_min,
-                                         bucket_limit[0]))
-    AssertExpectedForBps(5000, ea._Remap(5000, 0, 9000, histo_min,
-                                         bucket_limit[0]))
-    AssertExpectedForBps(7500, ea._Remap(7500, 0, 9000, histo_min,
-                                         bucket_limit[0]))
-    AssertExpectedForBps(9500, ea._Remap(9500, 9000, 10000, bucket_limit[0],
-                                         histo_max))
-    AssertExpectedForBps(10000, histo_max)
+  def testCompressHistogram_uglyHistogram(self):
+    bps = (0, 668, 1587, 3085, 5000, 6915, 8413, 9332, 10000)
+    vals = ea._CompressHistogram(
+        ea.HistogramValue(
+            min=0.0,
+            max=1.0,
+            num=960.0,
+            sum=64.0,
+            sum_squares=64.0,
+            bucket_limit=[
+                0.0,
+                1e-12,
+                0.917246389039776,
+                1.0089710279437536,
+                1.7976931348623157e+308],
+            bucket=[
+                0.0,
+                896.0,
+                0.0,
+                64.0,
+                0.0]),
+        bps)
+    self.assertEquals(tuple(v.basis_point for v in vals), bps)
+    self.assertAlmostEqual(vals[0].value, 0.0)
+    self.assertAlmostEqual(vals[1].value, 7.157142857142856e-14)
+    self.assertAlmostEqual(vals[2].value, 1.7003571428571426e-13)
+    self.assertAlmostEqual(vals[3].value, 3.305357142857143e-13)
+    self.assertAlmostEqual(vals[4].value, 5.357142857142857e-13)
+    self.assertAlmostEqual(vals[5].value, 7.408928571428571e-13)
+    self.assertAlmostEqual(vals[6].value, 9.013928571428571e-13)
+    self.assertAlmostEqual(vals[7].value, 9.998571428571429e-13)
+    self.assertAlmostEqual(vals[8].value, 1.0)
 
   def testImages(self):
     gen = _EventGenerator()
@@ -455,18 +401,6 @@ class MockingEventAccumulatorTest(EventAccumulatorTest):
     acc.Reload()
     self.assertEqual(acc.Audio('snd1'), [snd1])
     self.assertEqual(acc.Audio('snd2'), [snd2])
-
-  def testActivation(self):
-    gen = _EventGenerator()
-    acc = ea.EventAccumulator(gen)
-    self.assertFalse(acc._activated)
-    with self.assertRaises(RuntimeError):
-      acc.Tags()
-    with self.assertRaises(RuntimeError):
-      acc.Scalars('s1')
-    acc.Reload()
-    self.assertTrue(acc._activated)
-    acc._activated = False
 
   def testKeyError(self):
     gen = _EventGenerator()
@@ -640,6 +574,38 @@ class MockingEventAccumulatorTest(EventAccumulatorTest):
     self.assertEqual([x.step for x in acc.Scalars('s1')], [100, 200])
     self.assertEqual([x.step for x in acc.Scalars('s2')], [])
 
+  def testFirstEventTimestamp(self):
+    """Test that FirstEventTimestamp() returns wall_time of the first event."""
+    gen = _EventGenerator()
+    acc = ea.EventAccumulator(gen)
+    gen.AddEvent(tf.Event(wall_time=10, step=20, file_version='brain.Event:2'))
+    gen.AddScalar('s1', wall_time=30, step=40, value=20)
+    self.assertEqual(acc.FirstEventTimestamp(), 10)
+
+  def testReloadPopulatesFirstEventTimestamp(self):
+    """Test that Reload() means FirstEventTimestamp() won't load events."""
+    gen = _EventGenerator()
+    acc = ea.EventAccumulator(gen)
+    gen.AddEvent(tf.Event(wall_time=1, step=2, file_version='brain.Event:2'))
+
+    acc.Reload()
+
+    def _Die(*args, **kwargs):  # pylint: disable=unused-argument
+      raise RuntimeError('Load() should not be called')
+
+    self.stubs.Set(gen, 'Load', _Die)
+    self.assertEqual(acc.FirstEventTimestamp(), 1)
+
+  def testFirstEventTimestampLoadsEvent(self):
+    """Test that FirstEventTimestamp() doesn't discard the loaded event."""
+    gen = _EventGenerator()
+    acc = ea.EventAccumulator(gen)
+    gen.AddEvent(tf.Event(wall_time=1, step=2, file_version='brain.Event:2'))
+
+    self.assertEqual(acc.FirstEventTimestamp(), 1)
+    acc.Reload()
+    self.assertEqual(acc.file_version, 2.0)
+
 
 class RealisticEventAccumulatorTest(EventAccumulatorTest):
 
@@ -671,7 +637,7 @@ class RealisticEventAccumulatorTest(EventAccumulatorTest):
     device_stats.device = 'test device'
     writer.add_run_metadata(run_metadata, 'test run')
 
-    # Write a bunch of events using the writer
+    # Write a bunch of events using the writer.
     for i in xrange(30):
       summ_id = FakeScalarSummary('id', i)
       summ_sq = FakeScalarSummary('sq', i * i)
@@ -682,15 +648,17 @@ class RealisticEventAccumulatorTest(EventAccumulatorTest):
     # Verify that we can load those events properly
     acc = ea.EventAccumulator(directory)
     acc.Reload()
-    self.assertTagsEqual(acc.Tags(), {
-        ea.IMAGES: [],
-        ea.AUDIO: [],
-        ea.SCALARS: ['id', 'sq'],
-        ea.HISTOGRAMS: [],
-        ea.COMPRESSED_HISTOGRAMS: [],
-        ea.GRAPH: True,
-        ea.RUN_METADATA: ['test run']
-    })
+    self.assertTagsEqual(
+        acc.Tags(),
+        {
+            ea.IMAGES: [],
+            ea.AUDIO: [],
+            ea.SCALARS: ['id', 'sq'],
+            ea.HISTOGRAMS: [],
+            ea.COMPRESSED_HISTOGRAMS: [],
+            ea.GRAPH: True,
+            ea.RUN_METADATA: ['test run']
+        })
     id_events = acc.Scalars('id')
     sq_events = acc.Scalars('sq')
     self.assertEqual(30, len(id_events))
@@ -711,6 +679,8 @@ class RealisticEventAccumulatorTest(EventAccumulatorTest):
 
     # Verify we can now see all of the data
     acc.Reload()
+    id_events = acc.Scalars('id')
+    sq_events = acc.Scalars('sq')
     self.assertEqual(40, len(id_events))
     self.assertEqual(40, len(sq_events))
     for i in xrange(40):

@@ -1,4 +1,4 @@
-# Copyright 2015 Google Inc. All Rights Reserved.
+# Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -98,4 +98,4 @@ def Size(path):
   if gcs.IsGCSPath(path):
     raise NotImplementedError("io_wrapper.Size doesn't support GCS paths")
   else:
-    return gfile.Open(path).Size()
+    return gfile.Open(path).size()

@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -157,7 +157,7 @@ bool BFCAllocator::Extend(size_t rounded_bytes) {
   InsertFreeChunkIntoBin(h);
 
   // Invoke visitors on newly allocated region.
-  for (auto visitor : region_visitors_) {
+  for (const auto& visitor : region_visitors_) {
     visitor(mem_addr, bytes);
   }
   return true;

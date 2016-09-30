@@ -1,4 +1,4 @@
-/* Copyright 2015 Google Inc. All Rights Reserved.
+/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -600,6 +600,20 @@ TEST(SparseTensorTest, Split) {
   EXPECT_EQ(st_list[1].indices().NumElements(), 2);
   EXPECT_EQ(st_list[1].indices().matrix<int64>()(0, 0), 1);
   EXPECT_EQ(st_list[1].indices().matrix<int64>()(0, 1), 0);
+}
+
+TEST(SparseTensorTest, Dim0SparseTensorToDenseTensor) {
+  Tensor ix(DT_INT64, TensorShape({1, 0}));
+  Tensor vals(DT_INT32, TensorShape({1}));
+  vals.scalar<int32>()() = 5;
+
+  TensorShape shape({});
+  SparseTensor st(ix, vals, shape);
+
+  Tensor dense(DT_INT32, TensorShape({}));
+  st.ToDense<int32>(&dense);
+
+  EXPECT_EQ(dense.scalar<int32>()(), 5);
 }
 
 }  // namespace

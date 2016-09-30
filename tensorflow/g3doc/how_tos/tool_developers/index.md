@@ -56,7 +56,7 @@ Here we get a file handle for the path we've passed in to the script
 
 ```python
   if FLAGS.input_binary:
-    graph_def.ParseFromString(f.read)
+    graph_def.ParseFromString(f.read())
   else:
     text_format.Merge(f.read(), graph_def)
 ```
@@ -67,7 +67,7 @@ There are actually two different formats that a ProtoBuf can be saved in.
 TextFormat is a human-readable form, which makes it nice for debugging and
 editing, but can get large when there's numerical data like weights stored in
 it. You can see a small example of that in
-[poly5-graph.pbtxt](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/tensorboard/components/tf-tensorboard/demo/data/poly5-graph.pbtxt).
+[graph_run_run2.pbtxt](https://github.com/tensorflow/tensorflow/blob/ae3c8479f88da1cd5636b974f653f27755cb0034/tensorflow/tensorboard/components/tf-tensorboard/test/data/graph_run_run2.pbtxt).
 
 Binary format files are a lot smaller than their text equivalents, even though
 they're not as readable for us. In this script, we ask the user to supply a
@@ -90,9 +90,10 @@ of nodes stored in the node member. Here's the code that loops through those:
 for node in graph_def.node
 ```
 
-Each node is a `NodeDef` object, also defined in graph.proto. These are the
-fundamental building blocks of TensorFlow graphs, with each one defining a
-single operation along with its input connections. Here are the members of a
+Each node is a `NodeDef` object, defined in
+[tensorflow/core/framework/node_def.proto](https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/framework/node_def.proto). These
+are the fundamental building blocks of TensorFlow graphs, with each one defining
+a single operation along with its input connections. Here are the members of a
 `NodeDef`, and what they mean.
 
 ### `name`

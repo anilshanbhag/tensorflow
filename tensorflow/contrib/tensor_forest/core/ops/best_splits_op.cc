@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2016 The TensorFlow Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,25 +21,36 @@
 
 #include "tensorflow/core/framework/op.h"
 #include "tensorflow/core/framework/op_kernel.h"
-
+#include "tensorflow/core/framework/shape_inference.h"
+#include "tensorflow/core/kernels/bounds_check.h"
 
 namespace tensorflow {
+
+using shape_inference::DimensionHandle;
+using shape_inference::InferenceContext;
+using shape_inference::ShapeHandle;
 
 using std::placeholders::_1;
 using tensorforest::BestFeatureClassification;
 using tensorforest::BestFeatureRegression;
-
+using tensorforest::CheckTensorBounds;
 
 REGISTER_OP("BestSplits")
-  .Attr("regression: bool = false")
-  .Input("finished_nodes: int32")
-  .Input("node_to_accumulator: int32")
-  .Input("split_sums: float")
-  .Input("split_squares: float")
-  .Input("accumulator_sums: float")
-  .Input("accumulator_sqaures: float")
-  .Output("split_indices: int32")
-  .Doc(R"doc(
+    .Attr("regression: bool = false")
+    .Input("finished_nodes: int32")
+    .Input("node_to_accumulator: int32")
+    .Input("split_sums: float")
+    .Input("split_squares: float")
+    .Input("accumulator_sums: float")
+    .Input("accumulator_sqaures: float")
+    .Output("split_indices: int32")
+    .SetShapeFn([](InferenceContext* c) {
+      ShapeHandle finished_nodes;
+      TF_RETURN_IF_ERROR(c->WithRank(c->input(0), 1, &finished_nodes));
+      c->set_output(0, c->Vector(c->Dim(finished_nodes, 0)));
+      return Status::OK();
+    })
+    .Doc(R"doc(
   Returns the index of the best split for each finished node.
 
   For classification, the best split is the split with the lowest weighted
@@ -50,7 +61,7 @@ REGISTER_OP("BestSplits")
   finished_nodes:= A 1-d int32 tensor containing the indices of finished nodes.
   node_to_accumulator: `node_to_accumulator[i]` is the accumulator slot used by
     fertile node i, or -1 if node i isn't fertile.
-  split_sums:= a 3-d tensor where `split_sums[a][s]` summarizes the 
+  split_sums:= a 3-d tensor where `split_sums[a][s]` summarizes the
     training labels for examples that fall into the fertile node associated with
     accumulator slot s and have then taken the *left* branch of candidate split
     s.  For a classification problem, `split_sums[a][s][c]` is the count of such
@@ -59,7 +70,7 @@ REGISTER_OP("BestSplits")
   split_squares: Same as split_sums, but it contains the sum of the
     squares of the regression labels.  Only used for regression.  For
     classification problems, pass a dummy tensor into this.
-  accumulator_sums:= a 2-d tensor where `accumulator_sums[a]` summarizes the 
+  accumulator_sums:= a 2-d tensor where `accumulator_sums[a]` summarizes the
     training labels for examples that fall into the fertile node associated with
     accumulator slot s.  For a classification problem, `accumulator_sums[a][c]`
     is the count of such examples with class c and for regression problems,
@@ -70,7 +81,6 @@ REGISTER_OP("BestSplits")
   split_indices: `split_indices[i]` contains the index of the split to use for
     `finished_nodes[i]`.
 )doc");
-
 
 class BestSplits : public OpKernel {
  public:
@@ -122,6 +132,14 @@ class BestSplits : public OpKernel {
             "Number of accumulators should be the same in split_sums "
             "and accumulator_sums."));
 
+    // Check tensor bounds.
+    if (!CheckTensorBounds(context, finished)) return;
+    if (!CheckTensorBounds(context, node_to_accumulator)) return;
+    if (!CheckTensorBounds(context, split_sums)) return;
+    if (!CheckTensorBounds(context, split_squares)) return;
+    if (!CheckTensorBounds(context, accumulator_sums)) return;
+    if (!CheckTensorBounds(context, accumulator_squares)) return;
+
     Tensor* output_splits = nullptr;
     OP_REQUIRES_OK(context,
                    context->allocate_output(0, finished.shape(),
@@ -131,20 +149,23 @@ class BestSplits : public OpKernel {
     const auto finished_vec = finished.unaligned_flat<int32>();
     const auto node_map = node_to_accumulator.unaligned_flat<int32>();
 
-    const int32 num_finished = finished.shape().dim_size(0);
+    const int32 num_finished = static_cast<int32>(finished.shape().dim_size(0));
 
     std::function<int32(int32)> best_feature_func =
-        std::bind(BestFeatureClassification, accumulator_sums,
-                  split_sums, _1);
+        std::bind(BestFeatureClassification, accumulator_sums, split_sums, _1);
     if (regression_) {
        best_feature_func = std::bind(
            BestFeatureRegression, accumulator_sums, accumulator_squares,
            split_sums, split_squares, _1);
     }
 
-    for (int i = 0; i < num_finished; i++) {
-      const int32 node = finished_vec(i);
-      const int32 accumulator = node_map(node);
+    for (int32 i = 0; i < num_finished; i++) {
+      const int32 node = internal::SubtleMustCopy(finished_vec(i));
+      OP_REQUIRES(
+          context, FastBoundsCheck(node, node_map.size()),
+          errors::InvalidArgument("finished node is outside the valid range"));
+
+      const int32 accumulator = internal::SubtleMustCopy(node_map(node));
       if (accumulator < 0) {
         LOG(ERROR) << "Something has gone wrong, we got a finished node that "
                    << "doesn't have an accumulator allocated to it.";
